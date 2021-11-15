@@ -17,6 +17,7 @@ class COLOR:
 hMin = sMin = vMin = 0
 hMax = sMax = vMax = 0
 thresh = gas = 0
+alpha = beta = gamma = 0
 
 dity = 1
 
@@ -30,27 +31,32 @@ def getTrackCallback(var):
 
 ### track options
 tracks = [
-    # var, max, cur
-    ('hMin', 179, 30),
-    ('hMax', 179, 30),
+    # var, cur, max
+    ('hMin', 30, 179),
+    ('hMax', 30, 179),
 
-    ('sMin', 255, 240),
+    ('sMin', 240, 255),
     ('sMax', 255, 255),
     
-    ('vMin', 255, 0),
+    ('vMin', 0, 255),
     ('vMax', 255, 255),
 
-    ('thresh', 255, 150),
+    ('thresh', 150, 255),
 
-    ('gas', 9, 7),
+    ('gas', 7, 9),
+
+    ('alpha', 10, 10),
+    ('beta', 6, 10),
+    ('gamma', 10, 10),
 ]
 
 # Create a window
 cv2.namedWindow(WINDOW_TITLE)
 
-for (track_var, track_max, track_cur) in tracks:
+for (track_var, track_cur, track_max) in tracks:
     cv2.createTrackbar(track_var, WINDOW_TITLE, 0, track_max, getTrackCallback(track_var))
     cv2.setTrackbarPos(track_var, WINDOW_TITLE, track_cur)
+    globals()[track_var] = track_cur
 
 # Load image
 src = [
@@ -77,14 +83,14 @@ print(f'max image size: {mh}x{mw}')
 ### templates
 ### timg, tsize, tcolor, tval
 Timg = [
-    (timg, timg.shape[1::-1], color, threshold)
-    for (timg, color, threshold)
+    (tlabel, timg, timg.shape[1::-1], color, threshold)
+    for (tlabel, timg, color, threshold)
     in [
-        (cv2.imread('templates/percentage.png', cv2.IMREAD_GRAYSCALE), COLOR.MAGENTA, 0.8),
-        (cv2.imread('templates/slash.png', cv2.IMREAD_GRAYSCALE), COLOR.BLUE, 0.9),
-        (cv2.imread('templates/level.png', cv2.IMREAD_GRAYSCALE), COLOR.CYAN, 0.7),
-        (cv2.imread('templates/lparenthesis.png', cv2.IMREAD_GRAYSCALE), COLOR.GREEN, 0.8),
-        (cv2.imread('templates/dot.png', cv2.IMREAD_GRAYSCALE), COLOR.YELLOW, 0.999),
+        ('percentage', cv2.imread('templates/percentage.png', cv2.IMREAD_GRAYSCALE), COLOR.MAGENTA, 0.8),
+        ('slash', cv2.imread('templates/slash.png', cv2.IMREAD_GRAYSCALE), COLOR.BLUE, 0.9),
+        ('level', cv2.imread('templates/level.png', cv2.IMREAD_GRAYSCALE), COLOR.CYAN, 0.7),
+        ('lparenthesis', cv2.imread('templates/lparenthesis.png', cv2.IMREAD_GRAYSCALE), COLOR.GREEN, 0.8),
+        ('dot', cv2.imread('templates/dot.png', cv2.IMREAD_GRAYSCALE), COLOR.YELLOW, 0.999),
     ]
 ]
 
@@ -175,13 +181,32 @@ while(1):
             pos = (x + w - size[0], y + h + size[1])
             cv2.rectangle(result, pos, (pos[0] + size[0], pos[1] - size[1]), COLOR.GREEN, -1)
             cv2.putText(result, label, pos, font, 0.5, COLOR.RED)
-
+        
         ### template
-        for (timg, tsize, tcolor, tval) in Timg:
+        percentagePoints = []
+        lparenthesisPoints = []
+        dotPoints = []
+        templateMask = np.zeros_like(result, np.uint8)
+        for (tlabel, timg, tsize, tcolor, tval) in Timg:
             tresult = cv2.matchTemplate(gray, timg, cv2.TM_CCOEFF_NORMED)
             loc = np.where(tresult >= tval)
             for pt in zip(*loc[::-1]):
-                cv2.rectangle(result, pt, (pt[0] + tsize[0], pt[1] + tsize[1]), tcolor, 1)
+                cv2.rectangle(templateMask, pt, (pt[0] + tsize[0], pt[1] + tsize[1]), tcolor, -1)
+                
+                if (tlabel == 'percentage'):
+                    percentagePoints.append((pt, (pt[0] + tsize[0], pt[1] + tsize[1])))
+                elif (tlabel == 'lparenthesis'):
+                    lparenthesisPoints.append((pt, (pt[0] + tsize[0], pt[1] + tsize[1])))
+                elif (tlabel == 'dot'):
+                    dotPoints.append((pt, (pt[0] + tsize[0], pt[1] + tsize[1])))
+
+        result = cv2.addWeighted(result, alpha / 10.0, templateMask, beta / 10.0, gamma / 10.0)
+
+        ### find char
+        print(percentagePoints)
+        print(lparenthesisPoints)
+        print(dotPoints)
+        print('=' * 10)
 
         results.append(result)
 
