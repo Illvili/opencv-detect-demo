@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from time import time
 
 ### constant
 WINDOW_TITLE = 'preview'
@@ -138,6 +139,8 @@ while(1):
 
     results = []
     for image in images:
+        beginTime = time()
+
         # Convert to HSV format and color threshold
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, lower, upper)
@@ -272,10 +275,11 @@ while(1):
         detectNumber = 'HP: {0[0]}\nMP: {0[1]}'.format(paired)
         print(detectNumber)
         print('=' * 10)
-        result = cv2.addWeighted(result, alpha / 10.0, templateMask, beta / 10.0, gamma / 10.0)
 
         ### final result
-        result = cv2.rectangle(result, (95, 115), (250, 155), COLOR.WHITE, cv2.FILLED)
+        templateMask = cv2.rectangle(templateMask, (95, 115), (350, 155), COLOR.WHITE, cv2.FILLED)
+
+        result = cv2.addWeighted(result, alpha / 10.0, templateMask, beta / 10.0, gamma / 10.0)
 
         result = cv2.putText(result, detectNumber.splitlines()[0], (100, 130), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR.RED)
         result = cv2.putText(result, detectNumber.splitlines()[1], (100, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR.RED)
@@ -288,8 +292,11 @@ while(1):
         elif (hp == 100):
             ledMainColor = COLOR.GOLD
         result = cv2.rectangle(result, (215, 120), (245, 150), ledMainColor, cv2.FILLED)
+        result = cv2.putText(result, '{:.2f} ms'.format((time() - beginTime) * 1000), (260, 130), cv2.FONT_HERSHEY_PLAIN, 1, COLOR.RED)
+        result = cv2.putText(result, 'FPS {:.2f}'.format(1 / (time() - beginTime)), (260, 150), cv2.FONT_HERSHEY_PLAIN, 1, COLOR.RED)
 
         results.append(result)
+        print('used time: {}', (time() - beginTime) * 1000)
 
     if (len(results) == 8):
         cv2.imshow(WINDOW_TITLE, cv2.vconcat([
